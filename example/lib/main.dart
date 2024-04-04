@@ -26,6 +26,7 @@ class MyApp extends StatelessWidget {
                             'https://dl.solahangs.com/Music/1403/02/H/128/Hiphopologist%20-%20Shakkak%20%28128%29.mp3',
                         maxDuration: const Duration(seconds: 10),
                         isFile: false,
+                        pathToFolder: "path/to/voice/folder",
                         onComplete: () {
                           /// do something on complete
                         },
