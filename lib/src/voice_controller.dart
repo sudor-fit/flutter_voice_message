@@ -44,7 +44,7 @@ class VoiceController extends MyTicker {
   final AudioPlayer _player = AudioPlayer();
   final bool isFile;
   final String? cacheKey;
-  final String pathToFolder;
+  final Future<String> pathToFolder;
   PlayStatus playStatus = PlayStatus.init;
   PlaySpeed speed = PlaySpeed.x1;
   ValueNotifier updater = ValueNotifier(null);
