@@ -24,6 +24,8 @@ class MyApp extends StatelessWidget {
                           'https://dl.musichi.ir/1401/06/21/Ghors%202.mp3',
                       maxDuration: const Duration(seconds: 10),
                       isFile: false,
+                      //TODO change to real path
+                      pathToFolder: "path/to/voice/folder",
                       onComplete: () {
                         /// do something on complete
                       },
