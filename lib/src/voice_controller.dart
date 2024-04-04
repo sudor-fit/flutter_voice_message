@@ -43,7 +43,7 @@ class VoiceController extends MyTicker {
   late AnimationController animController;
   final AudioPlayer _player = AudioPlayer();
   final bool isFile;
-  final String pathToFolder;
+  final Future<String> pathToFolder;
   PlayStatus playStatus = PlayStatus.init;
   PlaySpeed speed = PlaySpeed.x1;
   ValueNotifier updater = ValueNotifier(null);
@@ -197,7 +197,7 @@ class VoiceController extends MyTicker {
       final uint8list = responseData.bodyBytes;
       final fileName = audioSrc.split('/').last;
 
-      File file = File("$pathToFolder/$fileName");
+      File file = File("${await pathToFolder}/$fileName");
       final result = await file.writeAsBytes(uint8list);
       return result.path;
     } catch (e) {
