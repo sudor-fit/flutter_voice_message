@@ -109,13 +109,10 @@ class VoiceMessageView extends StatelessWidget {
               ),
 
               ///
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
 
               /// speed button
               _changeSpeedButton(color),
-
-              ///
-              const SizedBox(width: 10),
             ],
           );
         },
@@ -179,20 +176,17 @@ class VoiceMessageView extends StatelessWidget {
         ),
       );
 
-  Transform _changeSpeedButton(Color color) => Transform.translate(
-        offset: const Offset(0, -7),
-        child: InkWell(
-          onTap: controller.changeSpeed,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              controller.speed.playSpeedStr,
-              style: circlesTextStyle,
-            ),
+  Widget _changeSpeedButton(Color color) => InkWell(
+        onTap: controller.changeSpeed,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            controller.speed.playSpeedStr,
+            style: circlesTextStyle,
           ),
         ),
       );
