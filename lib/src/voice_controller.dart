@@ -5,7 +5,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:voice_message_package/src/helpers/play_status.dart';
@@ -39,7 +38,7 @@ class VoiceController extends MyTicker {
   final Function() onPlaying;
   final Function() onPause;
   final Function(Object)? onError;
-  final double noiseWidth = 50.5.w();
+  final double noiseWidth = 44.w();
   late AnimationController animController;
   final AudioPlayer _player = AudioPlayer();
   final bool isFile;
