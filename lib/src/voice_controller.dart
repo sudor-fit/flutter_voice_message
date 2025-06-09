@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:http/http.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:voice_message_package/src/helpers/play_status.dart';
 import 'package:voice_message_package/src/helpers/utils.dart';
@@ -78,6 +77,8 @@ class VoiceController extends MyTicker {
 
   double get maxMillSeconds => maxDuration.inMilliseconds.toDouble();
 
+  StreamSubscription<FileResponse>? downloadStreamSubscription;
+
   /// Creates a new [VoiceController] instance.
   VoiceController({
     required this.audioSrc,
@@ -114,7 +115,7 @@ class VoiceController extends MyTicker {
       _updateUi();
       if (isFile) {
         final path = await _getFileFromCache();
-        await setMaxDuration(path);
+        // await setMaxDuration(path);
         await startPlaying(path);
         onPlaying();
       } else {
@@ -125,7 +126,6 @@ class VoiceController extends MyTicker {
             onPlaying();
           } else if (fileResponse is DownloadProgress) {
             _updateUi();
-            print(downloadProgress);
             downloadProgress = fileResponse.progress;
           }
         });
