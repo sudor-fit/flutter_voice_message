@@ -116,7 +116,7 @@ class VoiceController extends MyTicker {
       if (isFile) {
         final path = await _getFileFromCache();
         // await setMaxDuration(path);
-        await startPlaying(path);
+        await startPlaying(path!);
         onPlaying();
       } else {
         downloadStreamSubscription = _getFileFromCacheWithProgress()
