@@ -111,26 +111,48 @@ class VoiceController extends MyTicker {
 
   Future play() async {
     try {
+      debugPrint('VOICE CONTROLLER: Starting play() - audioSrc: $audioSrc');
+      debugPrint('VOICE CONTROLLER: isFile: $isFile');
+
       playStatus = PlayStatus.downloading;
       _updateUi();
+
       if (isFile) {
+        debugPrint('VOICE CONTROLLER: Getting local file from cache');
         final path = await _getFileFromCache();
+        debugPrint('VOICE CONTROLLER: Local file path: $path');
         // await setMaxDuration(path);
         await startPlaying(path!);
         onPlaying();
       } else {
-        downloadStreamSubscription = _getFileFromCacheWithProgress()
-            .listen((FileResponse fileResponse) async {
+        debugPrint('VOICE CONTROLLER: Starting remote file download/stream');
+        downloadStreamSubscription = _getFileFromCacheWithProgress().listen(
+            (FileResponse fileResponse) async {
           if (fileResponse is FileInfo) {
+            debugPrint(
+                'VOICE CONTROLLER: Download complete, file path: ${fileResponse.file.path}');
             await startPlaying(fileResponse.file.path);
             onPlaying();
           } else if (fileResponse is DownloadProgress) {
+            debugPrint(
+                'VOICE CONTROLLER: Download progress: ${fileResponse.progress}');
             _updateUi();
             downloadProgress = fileResponse.progress;
           }
+        }, onError: (error) {
+          debugPrint('VOICE CONTROLLER: Download stream error: $error');
+          playStatus = PlayStatus.downloadError;
+          _updateUi();
+          if (onError != null) {
+            onError!(error);
+          }
         });
       }
-    } catch (err) {
+    } catch (err, stackTrace) {
+      debugPrint('VOICE CONTROLLER ERROR in play(): $err');
+      debugPrint('VOICE CONTROLLER ERROR audioSrc: $audioSrc');
+      debugPrint('VOICE CONTROLLER ERROR stack: $stackTrace');
+
       playStatus = PlayStatus.downloadError;
       _updateUi();
       if (onError != null) {
@@ -172,9 +194,35 @@ class VoiceController extends MyTicker {
 
   /// Starts playing the voice.
   Future startPlaying(String path) async {
-    await _player.setFilePath(path);
-    await _player.play();
-    await _player.setSpeed(speed.getSpeed);
+    try {
+      debugPrint('VOICE CONTROLLER: Setting file path: $path');
+      await _player.setFilePath(path);
+    } catch (e, stackTrace) {
+      debugPrint('VOICE CONTROLLER ERROR in setFilePath: $e');
+      debugPrint('VOICE CONTROLLER ERROR path: $path');
+      debugPrint('VOICE CONTROLLER ERROR stack: $stackTrace');
+      rethrow;
+    }
+
+    try {
+      debugPrint('VOICE CONTROLLER: Starting playback');
+      await _player.play();
+    } catch (e, stackTrace) {
+      debugPrint('VOICE CONTROLLER ERROR in startPlaying: $e');
+      debugPrint('VOICE CONTROLLER ERROR stack: $stackTrace');
+      rethrow;
+    }
+
+    try {
+      debugPrint('VOICE CONTROLLER: Setting speed to ${speed.getSpeed}');
+      await _player.setSpeed(speed.getSpeed);
+
+      debugPrint('VOICE CONTROLLER: Playback started successfully');
+    } catch (e, stackTrace) {
+      debugPrint('VOICE CONTROLLER ERROR in setSpeed: $e');
+      debugPrint('VOICE CONTROLLER ERROR stack: $stackTrace');
+      rethrow;
+    }
   }
 
   Future<void> dispose() async {
@@ -204,17 +252,149 @@ class VoiceController extends MyTicker {
     if (isFile) {
       return audioSrc;
     }
+
+    // Extract extension from URL
+    final uri = Uri.parse(audioSrc);
+    final pathSegments = uri.pathSegments;
+    String fileExtension = '';
+
+    if (pathSegments.isNotEmpty) {
+      final fileName = pathSegments.last;
+      final dotIndex = fileName.lastIndexOf('.');
+      if (dotIndex != -1) {
+        fileExtension = fileName.substring(dotIndex);
+        debugPrint(
+            'VOICE CONTROLLER: Extracted extension from URL: $fileExtension');
+      }
+    }
+
+    // Clear cache for .octet-stream files to force re-download with correct extension
+    try {
+      final cachedFile =
+          await DefaultCacheManager().getFileFromCache(cacheKey ?? audioSrc);
+      if (cachedFile?.file.path.endsWith('.octet-stream') == true) {
+        debugPrint('VOICE CONTROLLER: Clearing cached .octet-stream file');
+        await DefaultCacheManager().removeFile(cacheKey ?? audioSrc);
+      }
+    } catch (e) {
+      debugPrint('VOICE CONTROLLER: Cache check error: $e');
+    }
+
+    // Use custom cache manager that forces file extension
     final p =
-        await DefaultCacheManager().getSingleFile(audioSrc, key: cacheKey);
-    return p.path;
+        await _getSingleFileWithExtension(audioSrc, fileExtension, cacheKey);
+    debugPrint('VOICE CONTROLLER: Final cached file path: $p');
+    return p;
   }
 
-  Stream<FileResponse> _getFileFromCacheWithProgress() {
+  /// Custom method to download file with forced extension
+  Future<String> _getSingleFileWithExtension(
+      String url, String extension, String? key) async {
+    try {
+      // Try to get from cache first
+      final fileInfo = await DefaultCacheManager().getFileFromCache(key ?? url);
+      if (fileInfo != null && !fileInfo.file.path.endsWith('.octet-stream')) {
+        debugPrint(
+            'VOICE CONTROLLER: Using cached file: ${fileInfo.file.path}');
+        return fileInfo.file.path;
+      }
+
+      // Download the file
+      debugPrint(
+          'VOICE CONTROLLER: Downloading file with forced extension: $extension');
+      final file = await DefaultCacheManager().getSingleFile(url, key: key);
+
+      // If the cached file has wrong extension, rename it
+      if (extension.isNotEmpty && !file.path.endsWith(extension)) {
+        final correctPath =
+            file.path.replaceAll(RegExp(r'\.[^.]*$'), extension);
+        debugPrint('VOICE CONTROLLER: Renaming ${file.path} to $correctPath');
+
+        try {
+          final renamedFile = await file.copy(correctPath);
+          await file.delete(); // Delete the old file
+          return renamedFile.path;
+        } catch (e) {
+          debugPrint(
+              'VOICE CONTROLLER: Failed to rename file: $e, using original');
+          return file.path;
+        }
+      }
+
+      return file.path;
+    } catch (e) {
+      debugPrint('VOICE CONTROLLER: Error in _getSingleFileWithExtension: $e');
+      rethrow;
+    }
+  }
+
+  Stream<FileResponse> _getFileFromCacheWithProgress() async* {
     if (isFile) {
       throw Exception("This method is not applicable for local files.");
     }
-    return DefaultCacheManager()
-        .getFileStream(audioSrc, key: cacheKey, withProgress: true);
+
+    // Extract extension from URL for progress downloads
+    final uri = Uri.parse(audioSrc);
+    final pathSegments = uri.pathSegments;
+    String fileExtension = '';
+
+    if (pathSegments.isNotEmpty) {
+      final fileName = pathSegments.last;
+      final dotIndex = fileName.lastIndexOf('.');
+      if (dotIndex != -1) {
+        fileExtension = fileName.substring(dotIndex);
+        debugPrint(
+            'VOICE CONTROLLER: Progress download extension: $fileExtension');
+      }
+    }
+
+    // Clear any existing .octet-stream files
+    try {
+      final cachedFile =
+          await DefaultCacheManager().getFileFromCache(cacheKey ?? audioSrc);
+      if (cachedFile?.file.path.endsWith('.octet-stream') == true) {
+        debugPrint(
+            'VOICE CONTROLLER: Progress - Clearing cached .octet-stream file');
+        await DefaultCacheManager().removeFile(cacheKey ?? audioSrc);
+      }
+    } catch (e) {
+      debugPrint('VOICE CONTROLLER: Progress - Cache check error: $e');
+    }
+
+    await for (final response in DefaultCacheManager()
+        .getFileStream(audioSrc, key: cacheKey, withProgress: true)) {
+      if (response is FileInfo) {
+        debugPrint(
+            'VOICE CONTROLLER: Progress download complete: ${response.file.path}');
+
+        // Check if we need to rename the file to correct extension
+        if (fileExtension.isNotEmpty &&
+            !response.file.path.endsWith(fileExtension)) {
+          try {
+            final correctPath = response.file.path
+                .replaceAll(RegExp(r'\.[^.]*$'), fileExtension);
+            debugPrint(
+                'VOICE CONTROLLER: Progress - Renaming ${response.file.path} to $correctPath');
+
+            final renamedFile = await response.file.copy(correctPath);
+            await response.file.delete();
+
+            // Yield the FileInfo with the renamed file
+            yield FileInfo(renamedFile, FileSource.Online, response.validTill,
+                response.originalUrl);
+          } catch (e) {
+            debugPrint(
+                'VOICE CONTROLLER: Progress - Failed to rename: $e, using original');
+            yield response;
+          }
+        } else {
+          yield response;
+        }
+      } else {
+        // Pass through DownloadProgress and other responses
+        yield response;
+      }
+    }
   }
 
   void cancelDownload() {
