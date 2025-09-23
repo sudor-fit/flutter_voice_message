@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:sizer/sizer.dart';
 import 'package:voice_message_package/voice_message_package.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -21,11 +20,11 @@ class MyApp extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(height: 50.h),
+                  const SizedBox(height: 50),
                   VoiceMessageView(
                     controller: VoiceController(
                       audioSrc:
-                          'https://dl.solahangs.com/Music/1403/02/H/128/Hiphopologist%20-%20Shakkak%20%28128%29.mp3',
+                          'https://cdn-stg.sudor.fit/community-media/test.m4a',
                       maxDuration: const Duration(seconds: 10),
                       isFile: false,
                       pathToFolder: getVoiceMessageDir(),
@@ -45,7 +44,7 @@ class MyApp extends StatelessWidget {
                     innerPadding: 12,
                     cornerRadius: 20,
                   ),
-                  SizedBox(height: 80.h),
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
